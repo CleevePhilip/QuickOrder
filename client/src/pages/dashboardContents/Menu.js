@@ -153,7 +153,7 @@ const Menu = () => {
           <TextInput
             placeholder="ENTER MENU"
             type="text"
-            value={menu}
+            value={menu}  
             onChange={(e) => setMenu(e.target.value)}
           />
           <TextInput

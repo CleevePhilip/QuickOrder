@@ -29,7 +29,6 @@ const Staff = () => {
   const [menuDataByCategory, setMenuDataByCategory] = useState({});
 
   // SORTING BASED ON CATEGORY: STEP 1
-  // 1.  Fetch menu items by category
   const handleSortByCategory = async (category_id) => {
     try {
       const response = await axios.post(
@@ -38,11 +37,8 @@ const Staff = () => {
       );
       const result = response.data;
       if (result.success) {
-        // 2. Store it in the object
         setMenuDataByCategory((prev) => ({
           ...prev,
-          // 3. The result will be based on its category id
-          // the key is categoryid result will be the data
           [category_id]: result.data,
         }));
       }
@@ -54,38 +50,34 @@ const Staff = () => {
   // SORTING BASED ON CATEGORY: STEP 2
   useEffect(() => {
     if (category) {
-      // If category is has values fetch the category
       handleSortByCategory(category);
     }
   }, [category]);
 
   // SORTING BASED ON CATEGORY: STEP 3
-  //  After fetching filter the display data based on its category
-  //if category has value display
   const filteredMenuData = category
     ? menuDataByCategory[category] || []
     : menuData;
 
-  // State for order forms
-  const [forms, setForms] = useState({
-    menu_id: null,
-    price: 0,
-    quantity: 0,
-    totalPrice: 0,
-  });
+  // Individual states for form data
+  const [menuId, setMenuId] = useState(null);
+  const [price, setPrice] = useState(0);
+  const [quantity, setQuantity] = useState(0);
+  const [totalPrice, setTotalPrice] = useState(0);
 
   const handleAddOpenModal = (menu) => {
-    setForms({
-      menu_id: menu.menu_id,
-      price: menu.price,
-      quantity: 0,
-      totalPrice: menu.price,
-    });
+    setMenuId(menu.menu_id);
+    setPrice(menu.price);
+    setQuantity(0);
+    setTotalPrice(menu.price);
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForms((prev) => ({ ...prev, [name]: value }));
+    if (name === "quantity") {
+      setQuantity(value);
+      setTotalPrice(value * price);
+    }
   };
 
   // State for order details
@@ -94,13 +86,13 @@ const Staff = () => {
   const handleOrder = (e) => {
     e.preventDefault();
 
-    if (forms.quantity === 0) {
+    if (quantity === 0) {
       alert("Make sure that quantity is not 0 before saving.");
       return;
     }
 
     const isMenuIdExist = orderDetails.some(
-      (order) => order.menu_id === forms.menu_id
+      (order) => order.menu_id === menuId
     );
 
     if (isMenuIdExist) {
@@ -110,27 +102,20 @@ const Staff = () => {
       return;
     }
 
-    const totalPrice = calculateTotalPrice(forms.quantity, forms.price);
-
     const order = {
-      menu_id: forms.menu_id,
-      quantity: forms.quantity,
-      price: forms.price,
+      menu_id: menuId,
+      quantity: quantity,
+      price: price,
       total_price: totalPrice,
     };
 
     setOrderDetails((prev) => [...prev, order]);
 
-    setForms({
-      menu_id: null,
-      price: 0,
-      quantity: 0,
-      totalPrice: 0,
-    });
-  };
-
-  const calculateTotalPrice = (quantity, price) => {
-    return quantity * price;
+    // Reset form states
+    setMenuId(null);
+    setPrice(0);
+    setQuantity(0);
+    setTotalPrice(0);
   };
 
   const handleOrderFinish = async () => {
@@ -142,7 +127,7 @@ const Staff = () => {
     try {
       const detailsWithOrderId = orderDetails.map((detail) => ({
         ...detail,
-        order_id: orderId, // Include the order ID here
+        order_id: orderId,
       }));
 
       const response = await axios.post(
@@ -188,7 +173,7 @@ const Staff = () => {
         }
       );
       if (response.data.success) {
-        setOrderId(response.data.order_id); // Save the created order ID for later use
+        setOrderId(response.data.order_id);
         handleStep();
       } else {
         setRender("create");
@@ -249,12 +234,12 @@ const Staff = () => {
                         modalId="add_orderDetails"
                         onOpen={() => handleAddOpenModal(menu)}
                       >
-                        <p>{forms.price}</p>
+                        <p>{price}</p>
                         <TextInput
                           placeholder="Quantity"
                           type="number"
                           name="quantity"
-                          value={forms.quantity}
+                          value={quantity}
                           onChange={handleChange}
                         />
                         <Button
@@ -281,15 +266,48 @@ const Staff = () => {
                     <th>Quantity</th>
                     <th>Price</th>
                     <th>Total Cost</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {orderDetails.map((order, index) => (
                     <tr key={index}>
                       <td>{order.menu_id}</td>
-                      <td>{order.quantity}</td>
+                      <td>
+                        <TextInput
+                          type="number"
+                          value={order.quantity}
+                          className=""
+                          onChange={(e) =>
+                            setOrderDetails((prev) =>
+                              prev.map((item, i) =>
+                                i === index
+                                  ? { ...item, quantity: e.target.value }
+                                  : item
+                              )
+                            )
+                          }
+                        />
+                      </td>
                       <td>{order.price}</td>
                       <td>{order.total_price}</td>
+                      <td className="flex flex-col gap-2 justify-center items-center">
+                        <Button
+                          buttonName="Modify"
+                          btnColor="btn-warning"
+                          btnSize="btn-xs"
+                        />
+                        <Button
+                          buttonName="Remove"
+                          btnColor="btn-error"
+                          btnSize="btn-xs"
+                          onClick={() =>
+                            setOrderDetails((prev) =>
+                              prev.filter((_, i) => i !== index)
+                            )
+                          }
+                        />
+                      </td>
                     </tr>
                   ))}
                 </tbody>
